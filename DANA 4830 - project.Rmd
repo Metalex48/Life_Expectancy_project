@@ -1,0 +1,634 @@
+---
+title: "DANA 4830 - project"
+author: "Alejandro Cervantes"
+date: "2023-03-28"
+output: word_document
+---
+
+# INTRODUCTION
+
+This project has the objective to answer the following questions:
+
+•	We want to know which variables have the most impact in determining the life expectancy for a country. In which areas should a country focus on to improve life expectancy?
+•	Can certain or all variables be grouped in principal components that still depict their variation clearly? Are these components useful to predict life expectancy?
+•	We would like to compare health-related variables and socio-economic-related variables and assess if there is a correlation. Do countries with lower GDP tend to have higher disease rates?
+
+The population of interest is made up of all countries in the world, all repeated a different time each year from 2000 to 2015. These countries have measurements of different health and socio-economic aspects along with the life expectancy for a given country at a given year. 
+
+# DATA EXPLORATION AND CLEANING
+
+The dataset can be found in the next URL: https://www.kaggle.com/datasets/kumarajarshi/life-expectancy-who
+
+The dataset has 2,938 observations and originally has 22 variables. In a preliminary analysis we decided that the following 14 variables would be kept: Country, Year, Status, Life expectancy, BMI, thinness 5-9 years, under-five deaths, Hepatitis B, Polio, Diphtheria, Population, GDP, Total expenditure, Schooling. We chose these because they are a combination of categorical/numerical variables and they encompass health and socio-economic metrics. It is worth mentioning that the dependent or response variable is Life Expectancy.
+
+With the above explained, we will go ahead and drop the variables that will not be used:
+
+## Dropping unnecessary variables. 
+```{r}
+View(Life.Expectancy.Data) # to view the whole data set
+head(Life.Expectancy.Data) # head of data set
+
+df <- subset(Life.Expectancy.Data, select = -c(Adult.Mortality, infant.deaths, Alcohol, percentage.expenditure, Measles, HIV.AIDS, thinness..1.19.years, Income.composition.of.resources))
+```
+
+Before jumping into the statistical analysis, we explore the data set to understand it better.
+
+## Initial data exploration.
+```{r}
+View(df) # to view the whole data set
+head(df) # head of data set
+tail(df) # tail of data set
+
+dim(df) # number of rows and columns of the data set
+
+str(df) # list all variables and their corresponding type
+```
+
+## Categorical data exploration.
+```{r}
+#We want to get unique values for each categorical variable.
+unique(df$Country) # There are 193 countries.
+unique(df$Year) # The years are from 2000 to 2015.
+unique(df$Status) # Only two categories: "Developing" and "Developed" 
+
+# Seeing the number of entries for each level of a categorical variable. 
+table(df$Country) # This shows some countries that only have a single row of data. For example Cook Islands, Dominica, Marshall Islands, Monaco, etc.
+table(df$Year) # We see that every year there were 183 rows of data. In 2013 there were 10 more, corresponding to those countries with a single row.
+table(df$Status) # About 82% of the countries are "Developing". 
+```
+
+## Numerical data exploration.
+```{r}
+summary(df) # see quartiles and spread of each variable
+```
+
+### Life.expectancy - histogram
+```{r}
+hist(df$Life.expectancy, main = "Histogram of Life.expectancy")
+#The histogram looks well. Expected values and no outliers.
+```
+
+
+### Hepatitis.B - histogram
+```{r}
+hist(df$Hepatitis.B, main = "Histogram of Hepatitis.B")
+# Histogram looks well. The majority of the countries have a 100% Hepatitis B immunization coverage among 1-year-olds.
+```
+
+### BMI - histogram
+```{r}
+hist(df$BMI, main = "Histogram of BMI")
+# BMI: After some research, the low values between 0 and 20, as well as the high values between 60 and 80 are strange. Other sources show a range from 20 to 33. It seems the whole column has inaccurate values, or another way of measuring. We will leave it as it is.
+```
+
+### under.five.deaths - histogram
+```{r}
+hist(df$under.five.deaths, main = "Histogram of under.five.deaths")
+# There is a wide spread. There are several countries with values over 150. Other sources indicate that values over 100 are very high. India has values over 2000 and Nigeria has values around 900. 
+df[df$under.five.deaths > 150, c('Country', 'Year', 'under.five.deaths')]
+unique(df[df$under.five.deaths > 150, c('Country', 'Year', 'under.five.deaths')]$Country)
+```
+
+### Polio - histogram
+```{r}
+hist(df$Polio, main = "Histogram of Polio")
+# Histogram looks well. The majority of the countries have a 100% Polio immunization coverage among 1-year-olds.
+```
+
+### Total.expenditure - histogram
+```{r}
+hist(df$Total.expenditure, main = "Histogram of Total.expenditure")
+# Histogram looks well. The histogram follows a semi-normal distribution with values between 0% and 15%. There are some outliers at the right tail, but nothing extraordinary. 
+```
+### Diphtheria - histogram
+```{r}
+hist(df$Diphtheria, main = "Histogram of Diphtheria")
+# Histogram looks well. The majority of the countries have a 100% Diphtheria immunization coverage among 1-year-olds.
+```
+
+### GDP - histogram
+```{r}
+hist(df$GDP, main = "Histogram of GDP")
+# histogram looks well. Some countries are sparsely above $60,000 USD in GDP per capita. 
+unique(df[df$GDP > 60000, c('Country', 'Year', 'GDP')]$Country)
+# Some of the richest countries show up in this list, as expected.
+```
+
+### Population - histogram
+```{r}
+hist(df$Population, main = "Histogram of Population")
+# although the histogram looks well, the values are not very accurate. China does not show as the top populated country.
+unique(df[df$Population > 200000000, c('Country', 'Year', 'Population')]$Country)
+df[df$Country == 'China', c('Country', 'Year', 'Population')]
+```
+
+### thinness.5.9.years - histogram
+```{r}
+hist(df$thinness.5.9.years, main = "Histogram of thinness.5.9.years")
+# The histogram looks well.
+unique(df[df$thinness.5.9.years < 1, c('Country', 'Year', 'thinness.5.9.years')]$Country)
+unique(df[df$thinness.5.9.years > 20, c('Country', 'Year', 'thinness.5.9.years')]$Country)
+```
+
+
+### Schooling - histogram
+```{r}
+hist(df$Schooling, main = "Histogram of Schooling")
+# The histogram looks well.
+unique(df[df$Schooling < 3, c('Country', 'Year', 'Schooling')]$Country)
+unique(df[df$Schooling > 18, c('Country', 'Year', 'Schooling')]$Country)
+```
+
+## Handling NA values
+
+```{r}
+sum(is.na(df)) # there are 2158 NA values
+
+summary(df) # to see the count of NAs in each variable
+
+df_na <- df[!complete.cases(df), ]
+table(df_na$Year)
+```
+
+
+
+### Life Expectancy
+```{r}
+df[is.na(df$Life.expectancy), ] 
+# these 10 countries only had a single row of data. Because they appear once, they have several missing values, and Life.expectancy is the independent variable, these rows will be dropped:
+
+df <- df[complete.cases(df$Life.expectancy), ]
+```
+
+### Hepatitis B
+```{r}
+df[is.na(df$Hepatitis.B), ] 
+# 553 NA values. 
+
+table(df[is.na(df$Hepatitis.B), ]$Year)
+# We see less missing values in recent years. We could copy the data from a year to the previous one. However, some countries do not have values for 2015. Let's see which ones:
+
+df[is.na(df$Hepatitis.B), ][df[is.na(df$Hepatitis.B), ]$Year == 2015, c('Country', 'Year', 'Hepatitis.B')]
+# Although we can see they are all developed countries, for those countries with missing values in 2015, we will impute the median of the whole data set, to avoid bias.
+
+median(df$Hepatitis.B, na.rm = TRUE) # The median for Hepatitis.B is 92.
+
+df[df$Country == "Denmark" & df$Year == 2015, "Hepatitis.B"] <- 92
+df[df$Country == "Finland" & df$Year == 2015, "Hepatitis.B"] <- 92
+df[df$Country == "Hungary" & df$Year == 2015, "Hepatitis.B"] <- 92
+df[df$Country == "Iceland" & df$Year == 2015, "Hepatitis.B"] <- 92
+df[df$Country == "Japan" & df$Year == 2015, "Hepatitis.B"] <- 92
+df[df$Country == "Norway" & df$Year == 2015, "Hepatitis.B"] <- 92
+df[df$Country == "Slovenia" & df$Year == 2015, "Hepatitis.B"] <- 92
+df[df$Country == "Switzerland" & df$Year == 2015, "Hepatitis.B"] <- 92
+df[df$Country == "United Kingdom of Great Britain and Northern Ireland" & df$Year == 2015, "Hepatitis.B"] <- 92
+
+table(df[is.na(df$Hepatitis.B), ]$Year) 
+# no more NA values in 2015. We can now go ahead with the downfill:
+
+library(zoo)
+df$Hepatitis.B <- na.locf(df$Hepatitis.B)
+
+df[is.na(df$Hepatitis.B), ] 
+# no more NA values. 
+
+```
+
+### BMI
+```{r}
+df[is.na(df$BMI), ]
+# 32 NA values.
+
+table(df[is.na(df$BMI), ]$Country)
+# We see the only missing countries are Sudan and South Sudan.
+
+# Because these are only 2 countries, instead of using the median of the whole data, we will use the median BMI from neighboring countries.
+
+m1 <- mean(df[df$Country == "Egypt", "BMI"])
+m2 <- mean(df[df$Country == "Eritrea", "BMI"])
+m3 <- mean(df[df$Country == "Ethiopia", "BMI"])
+m4 <- mean(df[df$Country == "Kenya", "BMI"])
+m5 <- mean(df[df$Country == "Uganda", "BMI"])
+m6 <- mean(df[df$Country == "Chad", "BMI"])
+m7 <- mean(df[df$Country == "Libya", "BMI"])
+
+median(c(m1,m2,m3,m4,m5,m6,m7))
+
+df[df$Country == "Sudan", "BMI"] <- median(c(m1,m2,m3,m4,m5,m6,m7))
+df[df$Country == "South Sudan", "BMI"] <- median(c(m1,m2,m3,m4,m5,m6,m7))
+
+df[is.na(df$BMI), ]
+# no more NA values.
+```
+
+### Polio
+```{r}
+df[is.na(df$Polio), ]
+# 19 NA values. 
+
+table(df[is.na(df$Polio), ]$Year)
+# We see less missing values in recent years. We will copy the data from a given year to the previous one.
+
+table(df[is.na(df$Polio), ]$Country)
+
+library(zoo)
+df$Polio <- na.locf(df$Polio)
+
+df[df$Country == "Montenegro", "Polio"] # an example to double check. We see the repeated values. 
+
+df[is.na(df$Polio), ]
+# No more NA values.
+```
+
+
+### Total.expenditure
+```{r}
+df[is.na(df$Total.expenditure), ]
+table(df[is.na(df$Total.expenditure), ]$Year)
+table(df[is.na(df$Total.expenditure), ]$Country)
+# 226 NA values. In this case, we can see that the majority of the NA values are missing in 2015, so we can do  upfill (or reverse downfill). But first, let's try to impute those missing values for the year 2000.
+
+
+df[is.na(df$Total.expenditure), ][df[is.na(df$Total.expenditure), ]$Year == 2000, "Country"]
+# Because they are 4 different countries, we'll again use the median of the whole data set.
+#"Democratic People's Republic of Korea", "Iraq", "Somalia", "South Sudan"   
+
+median(df$Total.expenditure, na.rm = TRUE) # The median for Total.expenditure is 5.75.
+
+df[df$Country == "Democratic People's Republic of Korea" & df$Year == 2000, "Total.expenditure"] <- 5.75
+df[df$Country == "Iraq" & df$Year == 2000, "Total.expenditure"] <- 5.75
+df[df$Country == "Somalia" & df$Year == 2000, "Total.expenditure"] <- 5.75
+df[df$Country == "South Sudan" & df$Year == 2000, "Total.expenditure"] <- 5.75
+
+table(df[is.na(df$Total.expenditure), ]$Year) # no NA values in 2000. We can do the upfill.
+
+library(zoo)
+df$Total.expenditure <- na.locf(df$Total.expenditure, fromLast = TRUE)
+
+df[df$Country == "Iraq", "Total.expenditure"] # an example to double check.
+
+df[is.na(df$Total.expenditure), ] 
+# no more NA values. 
+
+```
+
+### Diphtheria
+```{r}
+df[is.na(df$Diphtheria), ] 
+table(df[is.na(df$Diphtheria), ]$Year)
+table(df[is.na(df$Diphtheria), ]$Country)
+# 19 NA values. We see values missing until 2010, so we'll do a downfill.
+
+df[df$Country == "Montenegro", "Diphtheria"] # an example to double check.
+
+library(zoo)
+df$Diphtheria <- na.locf(df$Diphtheria)
+
+df[df$Country == "Montenegro", "Diphtheria"] # an example to double check.
+
+
+df[is.na(df$Diphtheria), ] 
+# no more NA values. 
+
+```
+
+
+### GDP
+```{r}
+df[is.na(df$GDP), ] 
+table(df[is.na(df$GDP), ]$Year)
+unique(df[is.na(df$GDP), ]$Country)
+# 443 NA values. About 15% of the column.
+# There is a great diversity of countries here like the US, Venezuela, UK, Slovakia, Moldova, Saint Lucia, Gambia, Korea, Bahamas, Bolivia, etc, 
+# Because it is nonsense to assume all of these countries generate the same GDP, and imputing correct values would require extensive research, we will drop this column. 
+
+df <- subset(df, select = -c(GDP))
+```
+
+
+
+### Population
+```{r}
+df[is.na(df$Population), ]
+table(df[is.na(df$Population), ]$Year)
+unique(df[is.na(df$Population), ]$Country)
+# 644 NA values. About 21% of the column.
+# There is a great diversity of countries here like the US, Venezuela, UK, Slovakia, Micronesia, Saint Lucia, Gambia, Korea, Bahamas, Bolivia, etc, 
+# Because it is nonsense to assume all of these countries have the same population, and imputing correct values would require extensive research, we will drop this column. 
+
+df <- subset(df, select = -c(Population))
+```
+
+### thinness.5.9.years
+```{r}
+df[is.na(df$thinness.5.9.years), ] 
+# 32 NA values
+table(df[is.na(df$thinness.5.9.years), ]$Year)
+unique(df[is.na(df$thinness.5.9.years), ]$Country)
+# We see the only missing countries are Sudan and South Sudan.
+
+# Because these are only 2 countries, instead of using the median of the whole data, we will use the median thinness.5.9.years from neighboring countries.
+
+m1 <- mean(df[df$Country == "Egypt", "thinness.5.9.years"])
+m2 <- mean(df[df$Country == "Eritrea", "thinness.5.9.years"])
+m3 <- mean(df[df$Country == "Ethiopia", "thinness.5.9.years"])
+m4 <- mean(df[df$Country == "Kenya", "thinness.5.9.years"])
+m5 <- mean(df[df$Country == "Uganda", "thinness.5.9.years"])
+m6 <- mean(df[df$Country == "Chad", "thinness.5.9.years"])
+m7 <- mean(df[df$Country == "Libya", "thinness.5.9.years"])
+
+median(c(m1,m2,m3,m4,m5,m6,m7))
+
+df[df$Country == "Sudan", "thinness.5.9.years"] <- median(c(m1,m2,m3,m4,m5,m6,m7))
+df[df$Country == "South Sudan", "thinness.5.9.years"] <- median(c(m1,m2,m3,m4,m5,m6,m7))
+
+df[is.na(df$thinness.5.9.years), ]
+# no more NA values.
+
+```
+
+### Schooling
+```{r}
+df[is.na(df$Schooling), ] 
+# 160 NA values
+table(df[is.na(df$Schooling), ]$Year)
+table(df[is.na(df$Schooling), ]$Country)
+# Although there is a great diversity of countries here, we will not drop the column. This is because there are only 10 countries in this list compared to the 30+ in GDP and Population. Additionally, the spread in Schooling is a lot less than the spread in GDP and Population. The procedure will be similar to the imputation process for Hepatitis B. 
+
+median(df$Schooling, na.rm = TRUE) # The median for Schooling is 12.3.
+
+df[df$Country == "Côte d'Ivoire", "Schooling"] <- 12.3
+df[df$Country == "Czechia", "Schooling"] <- 12.3
+df[df$Country == "Democratic People's Republic of Korea", "Schooling"] <- 12.3
+df[df$Country == "Democratic Republic of the Congo", "Schooling"] <- 12.3
+df[df$Country == "Republic of Korea", "Schooling"] <- 12.3
+df[df$Country == "Republic of Moldova", "Schooling"] <- 12.3
+df[df$Country == "Somalia", "Schooling"] <- 12.3
+df[df$Country == "United Kingdom of Great Britain and Northern Ireland", "Schooling"] <- 12.3
+df[df$Country == "United Republic of Tanzania", "Schooling"] <- 12.3
+df[df$Country == "United States of America", "Schooling"] <- 12.3
+
+df[is.na(df$Schooling), ] 
+# no more NA values. 
+```
+
+After all the cleaning, there are now no NA values. 
+```{r}
+sum(is.na(df)) # there are 0 NA values
+```
+
+## Handling outliers.
+We explored the numerical data, then we explored and cleaned the NA values. Now we will go back to the numerical variables and clean any remaining outliers. From the previous analysis, the following 4 variables stood out:
+BMI - Range is strange compared to other sources. We will leave the column as is, since the whole column seems to be off.
+Under.five.deaths - there is a wide spread. We will clean these values.
+GDP - This variable had a wide spread but it was dropped because of the many NA values.
+Population - This variable had a wide spread but it was dropped because of the many NA values.
+
+```{r}
+hist(df$under.five.deaths, main = "Histogram of under.five.deaths")
+# There is a wide spread. There are several countries with values over 150. Other sources indicate that values over 100 are very high. India has values over 2000 and Nigeria has values around 900. 
+df_ufd <- df[df$under.five.deaths > 150, c('Country', 'Year', 'under.five.deaths')]
+df_ufd
+
+unique(df_ufd$Country)
+# Other sources list other countries among the top under-5 mortality rate. Some of these countries are Somalia, Nigeria, Chad, Sierra Leone, CenAfrRep, South Sudan. The list from our data only coincides with Nigeria. To avoid any bias from our part, we will impute the median value to all of these countries.
+
+
+median(df$under.five.deaths) # The mean for under.five.deaths is 4.
+
+df[df$Country == "Angola", "under.five.deaths"] <- 4
+df[df$Country == "Bangladesh", "under.five.deaths"] <- 4
+df[df$Country == "China", "under.five.deaths"] <- 4
+df[df$Country == "Democratic Republic of the Congo", "under.five.deaths"] <- 4
+df[df$Country == "Ethiopia", "under.five.deaths"] <- 4
+df[df$Country == "India", "under.five.deaths"] <- 4
+df[df$Country == "Indonesia", "under.five.deaths"] <- 4
+df[df$Country == "Nigeria", "under.five.deaths"] <- 4
+df[df$Country == "Pakistan", "under.five.deaths"] <- 4
+df[df$Country == "Uganda", "under.five.deaths"] <- 4
+df[df$Country == "United Republic of Tanzania", "under.five.deaths"] <- 4
+
+
+df[df$under.five.deaths > 150, c('Country', 'Year', 'under.five.deaths')]
+# no more values over 150 in this variable.
+
+hist(df$under.five.deaths, main = "Histogram of under.five.deaths")
+```
+
+## Final touches
+The last final touches will be the following:
+--Convert the categorical variable Status to numerical. Developing = 0 and Developed = 1.
+--Scale and center the numerical data. 
+```{r}
+# Convert the categorical variable Status to numerical. Developing = 0 and Developed = 1.
+df_sc <- df
+
+df_sc$Status <- ifelse(df$Status == "Developing", 0, 1)
+
+#Scale and center the numerical data. 
+num_vars <- df_sc[4:12] # select only the numerical variables
+scaled_vars <- scale(num_vars, center = TRUE, scale = TRUE) # scale the numerical variables
+df_sc[, names(df[4:12])] <- scaled_vars # replace the original numerical variables with the scaled ones in the dataframe
+```
+
+
+## Reviewing final data set. 
+
+```{r}
+View(df_sc) # to view the whole data set
+head(df_sc) # head of data set
+
+dim(df_sc) # number of rows and columns of the data set
+
+col_name <- colnames(df_sc[4:12]) # getting the column name for all numerical variables
+
+lapply(names(df_sc[4:12]), function(col_name) {
+  hist(df_sc[4:12][[col_name]], main = paste("Histogram of", col_name))}) # function to generate a histogram for each numerical variable. 
+
+pairs(df_sc[,c(4:12)])
+
+library(corrplot)
+corrplot(cor(df_sc[4:12]), method = "number", type = "upper", tl.col = "black")
+# The only noticeable correlations are between Life.expectancy and Schooling, as well as between Polio and Diphteria.
+
+```
+
+# STATISTICAL ANALYSIS
+
+## PCA
+### Bartlett test and KMO
+We perform Bartlett test and KMO methods to test the adecuacy of the data to perform PCA.
+--Bartlett test: We want to test if the correlation matrix in the datasetet resembles an identity matrix. If it does not (rejecting the H0), it means that some variance is shared among the variables and PCA can be conducted.
+--KMO: The KMO statistic measures the proportion of variance in the data that is caused by underlying factors, as opposed to measurement error or other sources of random variation. The KMO statistic ranges from 0 to 1, with higher values indicating that the data is more suitable for PCA.
+```{r}
+# Bartlett’s test
+library(psych)
+correlations = cor(df_sc[4:12])
+cortest.bartlett(correlations, n = nrow(df)) # with a p-value of 0, we reject H0: There is some correlation between different variables. PCA is suitable in the data set.
+
+# KMO test
+KMO(correlations)
+##Overall MSA = 0.85, meaning that PCA is feasible in the data set.
+```
+### Principal Components
+We will use all numerical data (including Life Expectancy) to perform PCA. The objective here is to plot a 2D graph and see if we identify some patterns between the countries.
+```{r}
+# PCA analysis
+PCA <- prcomp(df_sc[4:12])
+PCA$sdev^2 # Eigenvalues
+PCA$rotation # Eigenvectors
+#PCA$x # Principal Components
+
+
+# Choosing how many PCs to keep
+
+## Kaiser criterion: keep the PCs with eigenvalues greater than the mean of all eigenvalues.
+PCA$sdev^2
+mean(PCA$sdev^2) # The mean of the Eigenvalues is 1. We would use PC1(eigenvalue = 3.97) and PC2(eigenvalue = 1.37). With a value of 0.989, PC3 is close to the threshold.
+
+## Total Variance: keep those PCs that their eigenvalues add up to 80% of the total variance.
+cumsum(PCA$sdev^2)
+cumsum(PCA$sdev^2)/9 # We would use PC1, PC2, PC3, PC4, and maybe PC5. 
+
+## Screeplot: choose those PCs that are in the steep part of the curve.
+library("factoextra")
+fviz_eig(PCA) # We would keep PC1 and PC2.
+
+# Loadings
+library(psych)
+fit <- principal(df_sc[4:12], nfactors=2, rotate="Varimax") # Varimax rotation
+fit$loadings
+# We can see that the first rotated component is associated with Life Expectancy, BMI, Thinnes, and Schooling.
+# The second rotatec component is more related to Diphteria, Polio, and Hepatitis B. 
+```
+
+### 2D Plots
+```{r}
+fviz_pca_ind(prcomp(df_sc[4:12]), title = "PCA - Life Expectancy", 
+             habillage = 'none', 
+             palette = "jco",
+             geom = "point", ggtheme = theme_classic(),
+             legend = "bottom")
+```
+Trying to label the plot above with some countries.
+```{r}
+scores <- data.frame(PCA$x[,1:2]) # getting PCs 1 and 2.
+df_scores <- cbind(scores, df_sc[,1]) # adding the categorical variable.
+colnames(df_scores)[3] <- "Country" # renaming the categorical variable.
+
+
+# Sample some rows to label, so the labels are not too many.
+label_pct <- 0.07
+labeled_rows <- sample(1:nrow(df_scores), round(nrow(df_scores)*label_pct))
+
+library(ggplot2)
+pca_plot <- ggplot(df_scores, aes(x = PC1, y = PC2)) +
+  geom_point(alpha = 0.5) +
+  geom_text(data = df_scores[labeled_rows,], aes(label = Country), size = 3)
+
+library(ggrepel)
+pca_plot + 
+  geom_text_repel(aes(label = Country), 
+                  size = 3, 
+                  segment.alpha = 0.2, 
+                  nudge_x = 0.1, 
+                  nudge_y = 0.1)
+```
+## Factor Analysis
+We want to explore the possibility of the existance of latent factors that could explain the variation in our observed variables.
+```{r}
+library(psych)
+
+nofactors = fa.parallel(df_sc[4:12], fm="ml", fa="fa") # We will proceed with 2 factors.
+
+fa <- fa(r = df_sc[4:12], nfactors = 2, rotate = "varimax")
+fa
+
+fa.diagram(fa)
+# The resulting diagram shows that one of the factors relates to L.E., schooling, BMI, Thinnes, and Under5Deaths. The other factor relates to diseases: diphteria, Polio, and Hepatitis B. 
+```
+
+
+## LDA
+Linear Discriminant Analysis is a supervised learning algorithm used for classification and dimensionality reduction. The aim is to separate the data by class. In this case, we will use the label "Status" to classify our data.
+```{r}
+# First we split the data set intro train and test.
+library(caret)
+train_idx <- createDataPartition(df_sc[3:12]$Status, p = 0.7, list = FALSE)
+train <- df_sc[3:12][train_idx, ]
+test <- df_sc[3:12][-train_idx, ]
+```
+
+Building the LDA model.
+```{r}
+library(MASS)
+lda <- lda(Status ~ ., data = train)
+lda
+```
+
+Making predictions and calculating accuracy.
+```{r}
+# Make predictions on the test set
+ldaPredictions <- predict(lda, test)
+
+# Print the confusion matrix
+cross_table <- table(test$Status, ldaPredictions$class)
+library(caret)
+caret::confusionMatrix(cross_table, positive = "1")
+```
+
+ROC curve
+```{r}
+# Obtain predicted class probabilities for test set
+probs <- ldaPredictions$posterior # the probability of the outcome from our LDA model
+
+# Get actual class labels for test set
+lda_labels <- test$Status
+
+# Plot ROC curve
+library(pROC)
+roc_obj <- roc(lda_labels, probs[, 2])
+plot(roc_obj, main="LDA - ROC Chart")
+
+roc_auc <- auc(roc_obj)
+roc_auc
+```
+
+
+## Stepwise Regression
+Running multiple linear regression model to predict Life Expectancy with the rest of the numerical variables using only the training set.
+```{r}
+model <- lm(Life.expectancy ~ . , data = train)
+summary(model)
+```
+Getting predictions with the linear model and looking at the error metrics.
+```{r}
+predictions <- predict(model, newdata = test)
+
+# metrics
+library(Metrics)
+cat("RMSE:", round(RMSE(predictions, test$Life.expectancy), 3), "\n")
+cat("MAE:", round(mae(test$Life.expectancy, predictions), 3), "\n")
+cat("MDAE:", round(mdae(test$Life.expectancy, predictions), 3), "\n")
+cat("MAPE:", round(mape(test$Life.expectancy, predictions), 3), "\n")
+```
+Reducing the number of predictors using stepwise regression.
+```{r}
+# Use stepwise regression to select a subset of predictors
+model_step <- step(model, direction='both')
+summary(model_step)
+```
+Getting predictions and error metrics from improved model.
+```{r}
+predictions2 <- predict(model_step, newdata = test)
+
+# metrics
+library(Metrics)
+cat("RMSE:", round(RMSE(predictions2, test$Life.expectancy), 3), "\n")
+cat("MAE:", round(mae(test$Life.expectancy, predictions2), 3), "\n")
+cat("MDAE:", round(mdae(test$Life.expectancy, predictions2), 3), "\n")
+cat("MAPE:", round(mape(test$Life.expectancy, predictions2), 3), "\n")
+```
+
+
+
